@@ -1,3 +1,3 @@
 # MyTello
 
-## init
+`tello1`,`tello2`
