@@ -6,7 +6,7 @@ import queue
 
 
 def start_video():
-    # 开启摄像头
+    # 开启摄像头q
     # m1芯片下h264库有问题 改为通过udp获取视频
     tl_camera = tl_drone.camera
     tl_camera.start_video_stream(display=True)

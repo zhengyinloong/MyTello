@@ -119,11 +119,11 @@ while True:
             control_tello(True, frame, (2 * x + w) // 2, (2 * y + h) // 2, (w + h) // 2)
             continue
     else:
-        print('为检测到人脸')
+        print('未检测到人脸')
         control_tello(False)
 
     cv2.imshow('img', frame)
-    key = cv2.waitKey(10)
+    key = cv2.waitKey(1)
     if ord('q') == key:
         break
 video_flag = False
