@@ -21,10 +21,10 @@ def nothing(x):
 cv2.namedWindow('tracking')
 cv2.createTrackbar('LH', 'tracking', 0, 255, nothing)
 cv2.createTrackbar('LS', 'tracking', 0, 255, nothing)
-cv2.createTrackbar('LV', 'tracking', 105, 255, nothing)
+cv2.createTrackbar('LV', 'tracking', 55, 255, nothing)
 
-cv2.createTrackbar('UH', 'tracking', 255, 255, nothing)
-cv2.createTrackbar('US', 'tracking', 74, 255, nothing)
+cv2.createTrackbar('UH', 'tracking', 23, 255, nothing)
+cv2.createTrackbar('US', 'tracking', 89, 255, nothing)
 cv2.createTrackbar('UV', 'tracking', 255, 255, nothing)
 cv2.moveWindow('tracking', 1000, 0)
 
@@ -97,20 +97,39 @@ def start_video():
             break
 
 
-def control_tello(frame, x, y, size):
+def control_tello(flag,frame, x, y, size):
     # 更具圆心位置控制无人机运动
     width = frame.shape[1]
     height = frame.shape[0]
 
     # 根据圆心位置计算与中心点偏差
-    speed_r = (width / 2 - x) // 5
+    speed_r = (width / 2 - x) // 4
     speed_y = (height / 2 - y) // 5
     # 目标距离
-    target_size = 40
-    speed_fw = target_size - size
+    target_size = 80
+    speed_fw = 2*(target_size - size)//3
     # 子线程控制姿态
-    flight_P = threading.Thread(target=tl_flight.rc, args=(0, speed_fw//2, speed_y, -speed_r,))
+    flight_P = threading.Thread(target=tl_flight.rc, args=(0, speed_fw, speed_y, -speed_r,))
     flight_P.start()
+
+
+# def control_tello(flag, frame=None, x=None, y=None, size=None):
+#     if flag:
+#         # 更具人脸大小位置控制无人机运动
+#         width = frame.shape[1]
+#         height = frame.shape[0]
+#
+#         # 根据人脸位置计算与中心点偏差
+#         speed_y = (width / 2 - x) // 8
+#         speed_z = (height / 2 - y) // 5
+#         # 目标距离
+#         target_size = 80
+#         speed_x = (target_size - size)
+#     else:
+#         speed_x, speed_y, speed_z = 0, 0, 0
+#     # 子线程控制姿态
+#     flight_P = threading.Thread(target=tl_flight.rc, args=(-speed_y, speed_x, speed_z, 0,))
+#     flight_P.start()
 
 
 # 连接无人机
@@ -130,27 +149,27 @@ print('电量', tl_battery.get_battery())
 tl_led = tl_drone.led
 tl_led.set_mled_graph('0')
 
+# # 子线程开启摄像头 否则一边获取视频数据一边处理会延迟
+video_flag = True
+q = queue.Queue()
+p1 = threading.Thread(target=start_video)
+p1.start()
+# cap = cv2.VideoCapture('udp://192.168.10.2:11111')
+print('摄像头开启完成')
+
 # 起飞
 tl_flight = tl_drone.flight
 tl_flight.takeoff().wait_for_completed(timeout=5)
 tl_flight.rc(0, 0, 0, 0)
 print('起飞完成')
 
-# # 子线程开启摄像头 否则一边获取视频数据一边处理会延迟
-video_flag = True
-# q = queue.Queue()
-# p1 = threading.Thread(target=start_video)
-# p1.start()
-cap = cv2.VideoCapture('udp://192.168.10.2:11111')
-print('摄像头开启完成')
-
 while True:
-    # if q.empty():
-    #     continue
-    # frame = q.get()
-    ret, frame = cap.read()
-    if not ret:
+    if q.empty():
         continue
+    frame = q.get()
+    # ret, frame = cap.read()
+    # if not ret:
+    #     continue
     # 尺寸缩小
     shape = frame.shape
     frame = cv2.resize(frame, dsize=(shape[1] // 2, shape[0] // 2))
@@ -169,7 +188,7 @@ while True:
         # # set_mled_graph是同步方法，有时候会卡，so子线程发送数据
         # led_p = threading.Thread(target=tl_led.set_mled_graph, args=(led_str,))
         # led_p.start()
-        control_tello(frame, data[0], data[1], data[2])
+        control_tello(True, frame, data[0], data[1], data[2])
 
     cv2.imshow('hsvImg', hsvImg)
     cv2.moveWindow("hsvImg", 500, 0)
@@ -181,10 +200,11 @@ while True:
         print('uh', u_h, 'us', u_s, 'uv', u_v)
         break
     if ord('s') == key:
-        cv2.imwrite('123.png',frame)
+        cv2.imwrite('123.png', frame)
         break
 video_flag = False
+
 p1.join()
 tl_flight.land()
-tl_drone.close()
+# tl_drone.close()
 cv2.destroyAllWindows()

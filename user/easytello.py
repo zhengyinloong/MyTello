@@ -27,6 +27,7 @@ class EasyTello:
         self.flight = self.tello.flight
         self.camera = self.tello.camera
         self.battery = self.tello.battery
+        self.target_size = 60
 
     def get_battery(self):
         # 获取电量
@@ -37,7 +38,7 @@ class EasyTello:
     def takeoff(self):
         # 起飞
         self.flight.takeoff().wait_for_completed(timeout=5)
-        self.flight.rc(0, 0, 0, 0)
+        # self.flight.rc(0, 0, 0, 0)
         print('起飞完成')
 
     def land(self):
@@ -76,6 +77,24 @@ class EasyTello:
             # else:
             #     return False
 
+        # def control_tello(flag, frame=None, x=None, y=None, size=None):
+        #     if flag:
+        #         # 更具人脸大小位置控制无人机运动
+        #         width = frame.shape[1]
+        #         height = frame.shape[0]
+        #
+        #         # 根据人脸位置计算与中心点偏差
+        #         speed_r = (width / 2 - x) // 5
+        #         speed_y = (height / 2 - y) // 5
+        #         # 目标距离
+        #         target_size = self.target_size
+        #         speed_fw = target_size - size
+        #     else:
+        #         speed_fw, speed_y, speed_r = 0, 0, 0
+        #     # 子线程控制姿态
+        #     flight_P = threading.Thread(target=self.flight.rc, args=(0, speed_fw, speed_y, -speed_r,))
+        #     flight_P.start()
+
         def control_tello(flag, frame=None, x=None, y=None, size=None):
             if flag:
                 # 更具人脸大小位置控制无人机运动
@@ -83,16 +102,19 @@ class EasyTello:
                 height = frame.shape[0]
 
                 # 根据人脸位置计算与中心点偏差
-                speed_r = (width / 2 - x) // 5
-                speed_y = (height / 2 - y) // 5
+                speed_y = (width / 2 - x) // 8
+                speed_z = (height / 2 - y) // 5
                 # 目标距离
-                target_size = 90
-                speed_fw = target_size - size
+                target_size = self.target_size
+                speed_x = (target_size - size)//2
+
+                speed_z = 0
             else:
-                speed_fw, speed_y, speed_r = 0, 0, 0
+                speed_x, speed_y, speed_z = 0, 0, 0
             # 子线程控制姿态
-            flight_P = threading.Thread(target=self.flight.rc, args=(0, speed_fw, speed_y, -speed_r,))
+            flight_P = threading.Thread(target=self.flight.rc, args=(-speed_y, speed_x, speed_z, 0,))
             flight_P.start()
+
 
         # 子线程开启摄像头 否则一边获取视频数据一边处理会延迟
         self.video_flag = True
@@ -102,7 +124,7 @@ class EasyTello:
         track_face_thread.start()
 
         # 加载官方人脸分类器
-        face_detect = cv2.CascadeClassifier('/tello1/haarcascades/haarcascade_frontalface_alt2.xml')
+        face_detect = cv2.CascadeClassifier('/home/loong/MyTello/tello1/haarcascades/haarcascade_frontalface_alt2.xml')
 
         while True:
             if self.video_queue.empty():
